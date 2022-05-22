@@ -1,21 +1,17 @@
-data "aws_ami" "hashistack" {
+data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["753646501470"]
 
   filter {
-    name   = "state"
-    values = ["available"]
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
   }
 
   filter {
-    name   = "tag:service_name"
-    values = ["${var.service_name}"]
+    name   = "virtualization-type"
+    values = ["hvm"]
   }
 
-  filter {
-    name   = "tag:service_version"
-    values = ["${var.service_version}"]
-  }
+  owners = ["099720109477"] # Canonical
 }
 
 // We launch Vault into an ASG so that it can properly bring them up for us.
@@ -62,18 +58,11 @@ resource "aws_autoscaling_group" "vault" {
   }
 }
 
-module "vault_instance_profile" {
-  region        = var.region
-  source        = "./instance-policy"
-  kms_arn       = aws_kms_key.vault.arn
-  resource_tags = var.resource_tags
-}
-
 resource "aws_launch_configuration" "vault" {
   image_id             = data.aws_ami.hashistack.id
   instance_type        = var.instance_type
   key_name             = var.key_name
-  security_groups      = ["${aws_security_group.vault.id}"]
+  security_groups      = ["${aws_security_group.Terraform_Agent.id}"]
   user_data            = template_file.install.rendered
   iam_instance_profile = module.vault_instance_profile.policy
 }
